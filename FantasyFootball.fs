@@ -5,24 +5,10 @@ module FantasyFootball
     open FSharp.Data
     open FSharp.Data
     open System
+    open Helper
+    open Domain
 
-    type Player = { FirstName:string; LastName:string }
-    type PlayerCounts = { Goalkeepers: int; Defenders: int; Midfielders: int; Attackers: int }
-
-    type Position = | Attacker | Midfielder | Defender | Goalkeeper
-
-    type Formation =
-        | FourFourTwo of PlayerCounts
-        | FourThreeThree of PlayerCounts
-
-    type Team = {
-        Goalkeeper: Player
-        Defenders: Player[]
-        Midfielder: Player[]
-        Attacker: Player[]
-    }
-
-    let getPlayer =
+    let getPlayers =
         let getPage page = 
             async {
               let! data = JsonValue.AsyncLoad ("https://www.easports.com/fifa/ultimate-team/api/fut/item?page=" + page.ToString())
@@ -73,7 +59,6 @@ module FantasyFootball
                        | Midfielder -> Midfielder
                        | Attacker -> Attacker
 
-        printf "\n\n\n"
         players |> Array.filter (findPositionFromString position)
 
     let getAllGoalkeepers = getAllPlayersInPosition Goalkeeper
@@ -84,7 +69,6 @@ module FantasyFootball
     let createPlayerFromJson (jsonPlayer:JsonValue) : Player =
         { FirstName = jsonPlayer?firstName.AsString() ; LastName = jsonPlayer?lastName.AsString() }
 
-
     let createTeam players pickedFormation =
 
         let numberOfGoalkeepers,numberOfDefenders,numberOfMidfielders,numberOfAttackers = pickedFormation.Goalkeepers, pickedFormation.Defenders, pickedFormation.Midfielders, pickedFormation.Attackers
@@ -94,63 +78,21 @@ module FantasyFootball
         let midfielders =  getAllMidfielders players |> Array.take numberOfMidfielders |> Array.map createPlayerFromJson
         let attackers =  getAllAttackers players |> Array.take numberOfAttackers |> Array.map createPlayerFromJson
         
-        // goalKeepers
-        // |> Array.map (fun x -> x?firstName.AsString() + " " + x?lastName.AsString())
-        // |> Array.iter (fun x -> printf "Player is: %s\n" x)
-
-        {
-            Goalkeeper = goalKeepers.[0]
-            Defenders = defenders
-            Midfielder = midfielders
-            Attacker = attackers
-        }
+        { Goalkeeper = goalKeepers.[0]
+          Defenders = defenders
+          Midfielder = midfielders
+          Attacker = attackers }
 
     let findBestTeam formation =
-        let players = getPlayer
+        let players = getPlayers
         let pickedFormation = match formation with
                               | FourFourTwo x -> x
                               | FourThreeThree x -> x
 
-        let team = createTeam players pickedFormation
-
-        printf "-----------TEAM------------\n\n"
-        printf "Goalkeeper\n\n"
-        printf "%s" (team.Goalkeeper.FirstName + " " + team.Goalkeeper.LastName)
-        printf "Defenders\n\n"
-        team.Defenders |> Array.iter (fun x -> printf "%s %s\n" x.FirstName x.LastName)
-        printf "Midfielders\n\n"
-        team.Midfielder |> Array.iter (fun x -> printf "%s %s\n" x.FirstName x.LastName)
-        printf "Attackers\n\n"
-        team.Attacker |> Array.iter (fun x -> printf "%s %s\n" x.FirstName x.LastName)
-        printf "------------END------------"
-
+        createTeam players pickedFormation |> Helper.printTeam
+        
     let pickTeam (stringFormation:string) =
         match stringFormation with
         | "442" -> findBestTeam (FourFourTwo {Goalkeepers = 1; Defenders = 4; Midfielders = 4; Attackers = 2})
         | "433" -> findBestTeam (FourThreeThree {Goalkeepers = 1; Defenders = 4; Midfielders = 3; Attackers = 3})
         | _ -> failwith "Unknown formation, please try again!!"
-
-
-
-    
-
-
-
-
-
-
-
-
-    // let printPlayersName =
-    //     let players = getPlayer
-    //     printf "\n\n"
-    //     //players |> Array.filter (fun x -> x?height.AsFloat() > 12.)
-    //     //players |> Array.map (fun x -> x?firstName.AsString() + " " + x?lastName.AsString()) |> Array.iter (fun x -> printf "Their name is: %A\n" x)
-    //     //players |> Array.map (fun x -> x?position.AsString()) |> Array.iter (fun x -> printf "Their position is: %A\n" x)
-    //     players
-    //     |> Array.map (fun x -> x?position.AsString())
-    //     |> Array.distinct
-    //     |> Array.sortByDescending (fun x -> x)
-    //     |> Array.iter (fun x -> printf "Their position is: %A\n" x)
-        
-    //     printf "\n\n"
