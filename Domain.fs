@@ -1,5 +1,5 @@
 module Domain
-    type Player = { FirstName:string; LastName:string }
+    type Player = { FirstName:string; LastName:string; Team: string; Position: string; Rating:int }
     type PlayerCounts = { Goalkeepers: int; Defenders: int; Midfielders: int; Attackers: int }
 
     type Position = | Attacker | Midfielder | Defender | Goalkeeper
