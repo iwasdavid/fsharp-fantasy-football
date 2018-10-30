@@ -1,5 +1,8 @@
 module FantasyFootball
 
+    // Overall this looks great, you clearly understand what you are doing and know the F# idioms
+    // I'll just add some minor comments and trivia
+
     open FSharp.Data
     open FSharp.Data.JsonExtensions
     open Helper
@@ -8,7 +11,7 @@ module FantasyFootball
     let getPlayers =
         let getPage page = 
             async {
-              let! data = JsonValue.AsyncLoad ("https://www.easports.com/fifa/ultimate-team/api/fut/item?page=" + page.ToString())
+              let! data = JsonValue.AsyncLoad (sprintf "https://www.easports.com/fifa/ultimate-team/api/fut/item?page=%i" page)
               let items = 
                 [| for item in data?items -> item |] 
                 //|> Array.filter (fun item -> item?playerType.AsString() = "rare" || item?playerType.AsString() = "standard")
@@ -21,19 +24,24 @@ module FantasyFootball
         [|600..800|] 
         |> Array.map getPage
         |> Async.Parallel
+        // Here you passing 200 Asyncs to be ran in parallel. This might work, but you might want to batch/throttle this work.
+        // There is a nice library for handling this sort of stuff; AsyncSeq: https://github.com/fsprojects/FSharp.Control.AsyncSeq
+        // Here's the API http://fsprojects.github.io/FSharp.Control.AsyncSeq/reference/fsharp-control-asyncseq.html
         |> Async.RunSynchronously
         |> Array.concat
 
     let findPosition (position:string) =
+        // Suggestions:
         match position.ToUpper().Trim() with
-        | p when p = "GK" -> Goalkeeper
-        | p when p = "RWB" || p = "RB" || p = "CB" || p = "LB" || p = "LWB" -> Defender
-        | p when p = "RW" || p = "RM" || p = "LW" || p = "LM" || p = "CM" || p = "CDM" || p = "CAM"  -> Midfielder
-        | p when p = "ST" || p = "LF" || p = "CF" || p = "RF" -> Attacker
+        | "GK" -> Goalkeeper
+        | "RWB" | "RB" | "CB" | "LB" | "LWB" -> Defender
+        | "RW" | "RM" | "LW" | "LM" | "CM" | "CDM" | "CAM"  -> Midfielder
+        | "ST" | "LF" | "CF" | "RF" -> Attacker
         | _ -> failwith "No known position :("
 
     let findPositionFromString (position:Position) (player:JsonValue)  =
 
+        // I presume this is still a work in progress
         let passedInPosition = match position with
                                | Goalkeeper -> Goalkeeper
                                | Defender -> Defender
@@ -73,11 +81,9 @@ module FantasyFootball
         }
 
     let removeIconPlayers (jsonPlayer:JsonValue) =
-        if jsonPlayer?club?name.AsString() = "Icons" then
-            false
-        else
-            true
-        
+        // Alternative:
+        jsonPlayer?club?name.AsString() <> "Icons"
+    
     let removeDupliactePlayers (player:JsonValue) =
         player?firstName.AsString() + " " + player?lastName.AsString()
 
@@ -94,6 +100,7 @@ module FantasyFootball
         |> Array.distinctBy removeDupliactePlayers
         |> Array.filter removeIconPlayers
 
+    // Partial application 👍
     let getAllGoalkeepers = getAllPlayersInPosition Goalkeeper
     let getAllDefenders = getAllPlayersInPosition Defender
     let getAllMidfielders = getAllPlayersInPosition Midfielder
@@ -125,12 +132,13 @@ module FantasyFootball
                           |> Array.take numberOfAttackers
                           |> Array.map createPlayerFromJson
         
-        { Goalkeeper = goalKeepers.[0]
+        { Goalkeeper = goalKeepers |> Array.head // Alternative again 🤷
           Defenders = defenders
           Midfielder = midfielders
           Attacker = attackers }
 
     let findBestTeam formation =
+        // getPlayers here is just players, either change getPlayers to take unit, or rename it and remove this redundant variable
         let players = getPlayers
         let pickedFormation = match formation with
                               | FourFourTwo x -> x
@@ -139,6 +147,6 @@ module FantasyFootball
         
     let pickTeam (stringFormation:string) =
         match stringFormation with
-        | "442" -> findBestTeam (FourFourTwo {Goalkeepers = 1; Defenders = 4; Midfielders = 4; Attackers = 2})
+        | "442" -> findBestTeam (FourFourTwo {Goalkeepers = 1; Defenders = 4; Midfielders = 4; Attackers = 2}) // It feels like the record created here belongs inside of the domain, otherwise FourFourTwo is a name with no meaning
         | "433" -> findBestTeam (FourThreeThree {Goalkeepers = 1; Defenders = 4; Midfielders = 3; Attackers = 3})
         | _ -> failwith "Unknown formation, please try again!!"

@@ -4,6 +4,8 @@ module Domain
 
     type Position = | Attacker | Midfielder | Defender | Goalkeeper
 
+    // After you match on this DU, you'll get back a PlayerCounts and lose that information
+    // I would expect the types wrapped here to encode that somehow
     type Formation =
         | FourFourTwo of PlayerCounts
         | FourThreeThree of PlayerCounts
