@@ -1,12 +1,11 @@
 module Domain
-    type Player = { FirstName:string; LastName:string; Team: string; Position: string; Rating:int }
-    type PlayerCounts = { Goalkeepers: int; Defenders: int; Midfielders: int; Attackers: int }
-
-    type Position = | Attacker | Midfielder | Defender | Goalkeeper
-
-    type Formation =
-        | FourFourTwo of PlayerCounts
-        | FourThreeThree of PlayerCounts
+    type Player = {
+        FirstName:string
+        LastName:string
+        Team: string
+        Position: string
+        Rating:int 
+    }
 
     type Team = {
         Goalkeeper: Player
@@ -14,3 +13,7 @@ module Domain
         Midfielder: Player[]
         Attacker: Player[]
     }
+
+    type Position = Attacker | Midfielder | Defender | Goalkeeper
+    type Formation = FourFourTwo | FourThreeThree
+    

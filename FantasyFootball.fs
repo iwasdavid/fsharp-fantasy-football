@@ -8,17 +8,15 @@ module FantasyFootball
     let getPlayers =
         let getPage page = 
             async {
-              let! data = JsonValue.AsyncLoad ("https://www.easports.com/fifa/ultimate-team/api/fut/item?page=" + page.ToString())
-              let items = 
-                [| for item in data?items -> item |] 
-                //|> Array.filter (fun item -> item?playerType.AsString() = "rare" || item?playerType.AsString() = "standard")
-              return items
+                let! data = JsonValue.AsyncLoad (sprintf "https://www.easports.com/fifa/ultimate-team/api/fut/item?page=%i" page)
+                let items = [| for item in data?items -> item |] 
+                return items
             }
 
         let value = 10//JsonValue.Load ("https://www.easports.com/fifa/ultimate-team/api/fut/item")
         let totalPages = value//?totalPages.AsInteger()
 
-        [|600..800|] 
+        [|1..150|] 
         |> Array.map getPage
         |> Async.Parallel
         |> Async.RunSynchronously
@@ -26,14 +24,13 @@ module FantasyFootball
 
     let findPosition (position:string) =
         match position.ToUpper().Trim() with
-        | p when p = "GK" -> Goalkeeper
-        | p when p = "RWB" || p = "RB" || p = "CB" || p = "LB" || p = "LWB" -> Defender
-        | p when p = "RW" || p = "RM" || p = "LW" || p = "LM" || p = "CM" || p = "CDM" || p = "CAM"  -> Midfielder
-        | p when p = "ST" || p = "LF" || p = "CF" || p = "RF" -> Attacker
+        | "GK" -> Goalkeeper
+        | "RWB" | "RB" | "CB" | "LB" | "LWB" -> Defender
+        | "RW" | "RM" | "LW" | "LM" | "CM" | "CDM" | "CAM"  -> Midfielder
+        | "ST" | "LF" | "CF" | "RF" -> Attacker
         | _ -> failwith "No known position :("
 
     let findPositionFromString (position:Position) (player:JsonValue)  =
-
         let passedInPosition = match position with
                                | Goalkeeper -> Goalkeeper
                                | Defender -> Defender
@@ -72,14 +69,9 @@ module FantasyFootball
                        | _ -> "Unknown position!"
         }
 
-    let removeIconPlayers (jsonPlayer:JsonValue) =
-        if jsonPlayer?club?name.AsString() = "Icons" then
-            false
-        else
-            true
+    let removeIconPlayers (jsonPlayer:JsonValue) = jsonPlayer?club?name.AsString() <> "Icons"
         
-    let removeDupliactePlayers (player:JsonValue) =
-        player?firstName.AsString() + " " + player?lastName.AsString()
+    let removeDupliactePlayers (player:JsonValue) = player?firstName.AsString() + " " + player?lastName.AsString()
 
     let getAllPlayersInPosition (pos:Position) (players:JsonValue[]) =
 
@@ -99,46 +91,39 @@ module FantasyFootball
     let getAllMidfielders = getAllPlayersInPosition Midfielder
     let getAllAttackers = getAllPlayersInPosition Attacker
 
-    
+    let getStartingPlayers players findBest numberToTake =
+        players
+        |> Array.sortByDescending findBest
+        |> Array.take numberToTake
+        |> Array.map createPlayerFromJson
 
-    let createTeam players pickedFormation =
+    let createTeam (players:JsonValue[]) (pickedFormation:Formation) =
+        let numberOfGoalkeepers,numberOfDefenders,numberOfMidfielders,numberOfAttackers = match pickedFormation with
+                                                                                          | FourFourTwo -> 1,4,4,2
+                                                                                          | FourThreeThree -> 1,4,3,3
 
-        let numberOfGoalkeepers,numberOfDefenders,numberOfMidfielders,numberOfAttackers = pickedFormation.Goalkeepers, pickedFormation.Defenders, pickedFormation.Midfielders, pickedFormation.Attackers
-
-        let goalKeepers =  getAllGoalkeepers players
-                           |> Array.sortByDescending (fun x -> x?rating) //add function to sort these properly
-                           |> Array.take numberOfGoalkeepers
-                           |> Array.map createPlayerFromJson
-
-        let defenders =  getAllDefenders players
-                         |> Array.sortByDescending (fun x -> x?rating)
-                         |> Array.take numberOfDefenders
-                         |> Array.map createPlayerFromJson
-
-        let midfielders =  getAllMidfielders players
-                           |> Array.sortByDescending (fun x -> x?rating)
-                           |> Array.take numberOfMidfielders
-                           |> Array.map createPlayerFromJson
-
-        let attackers =  getAllAttackers players
-                          |> Array.sortByDescending (fun x -> x?rating)
-                          |> Array.take numberOfAttackers
-                          |> Array.map createPlayerFromJson
+        let goalKeeper =  getStartingPlayers (getAllGoalkeepers players) findBestGoalkeeper numberOfGoalkeepers |> Array.head
+        let defenders =  getStartingPlayers (getAllDefenders players) findBestDefenders numberOfDefenders
+        let midfielders =  getStartingPlayers (getAllMidfielders players) findBestMidfielders numberOfMidfielders
+        let attackers =  getStartingPlayers (getAllAttackers players) findBestAttackers numberOfAttackers
         
-        { Goalkeeper = goalKeepers.[0]
-          Defenders = defenders
-          Midfielder = midfielders
-          Attacker = attackers }
+        {
+            Goalkeeper = goalKeeper
+            Defenders = defenders
+            Midfielder = midfielders
+            Attacker = attackers
+        }
 
     let findBestTeam formation =
         let players = getPlayers
         let pickedFormation = match formation with
-                              | FourFourTwo x -> x
-                              | FourThreeThree x -> x
+                              | FourFourTwo -> FourFourTwo
+                              | FourThreeThree -> FourThreeThree
+
         createTeam players pickedFormation |> printTeam
         
     let pickTeam (stringFormation:string) =
         match stringFormation with
-        | "442" -> findBestTeam (FourFourTwo {Goalkeepers = 1; Defenders = 4; Midfielders = 4; Attackers = 2})
-        | "433" -> findBestTeam (FourThreeThree {Goalkeepers = 1; Defenders = 4; Midfielders = 3; Attackers = 3})
+        | "442" -> findBestTeam FourFourTwo
+        | "433" -> findBestTeam FourThreeThree
         | _ -> failwith "Unknown formation, please try again!!"
