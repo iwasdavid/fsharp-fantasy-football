@@ -101,6 +101,7 @@ module FantasyFootball
         let numberOfGoalkeepers,numberOfDefenders,numberOfMidfielders,numberOfAttackers = match pickedFormation with
                                                                                           | FourFourTwo -> 1,4,4,2
                                                                                           | FourThreeThree -> 1,4,3,3
+                                                                                          | ThreeFiveTwo -> 1,3,5,2
 
         let goalKeeper =  getStartingPlayers (getAllGoalkeepers players) findBestGoalkeeper numberOfGoalkeepers |> Array.head
         let defenders =  getStartingPlayers (getAllDefenders players) findBestDefenders numberOfDefenders
@@ -119,6 +120,7 @@ module FantasyFootball
         let pickedFormation = match formation with
                               | FourFourTwo -> FourFourTwo
                               | FourThreeThree -> FourThreeThree
+                              | ThreeFiveTwo -> ThreeFiveTwo
 
         createTeam players pickedFormation |> printTeam
         
@@ -126,4 +128,5 @@ module FantasyFootball
         match stringFormation with
         | "442" -> findBestTeam FourFourTwo
         | "433" -> findBestTeam FourThreeThree
+        | "352" -> findBestTeam ThreeFiveTwo
         | _ -> failwith "Unknown formation, please try again!!"

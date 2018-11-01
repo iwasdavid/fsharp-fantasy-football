@@ -7,7 +7,7 @@ open FantasyFootball
 [<EntryPoint>]
 let main argv =
 
-    pickTeam "442"
+    pickTeam "352"
     //printPlayersName
 
     0 // return an integer exit code
