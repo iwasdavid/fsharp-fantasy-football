@@ -13,9 +13,6 @@ module FantasyFootball
                 return items
             }
 
-        let value = 10//JsonValue.Load ("https://www.easports.com/fifa/ultimate-team/api/fut/item")
-        let totalPages = value//?totalPages.AsInteger()
-
         [|1..150|] 
         |> Array.map getPage
         |> Async.Parallel
