@@ -15,5 +15,5 @@ module Domain
     }
 
     type Position = Attacker | Midfielder | Defender | Goalkeeper
-    type Formation = FourFourTwo | FourThreeThree | ThreeFiveTwo
+    type Formation = FourFourTwo | FourThreeThree | ThreeFiveTwo | FourFiveOne
     

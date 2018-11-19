@@ -28,16 +28,9 @@ module FantasyFootball
         | _ -> failwith "No known position :("
 
     let findPositionFromString (position:Position) (player:JsonValue)  =
-        let passedInPosition = match position with
-                               | Goalkeeper -> Goalkeeper
-                               | Defender -> Defender
-                               | Midfielder -> Midfielder
-                               | Attacker -> Attacker
-
         let stringPosition = player?position.AsString()
         let foundPosition = findPosition stringPosition
-        
-        passedInPosition = foundPosition
+        position = foundPosition
 
     let createPlayerFromJson (jsonPlayer:JsonValue) : Player =
         {
@@ -70,14 +63,7 @@ module FantasyFootball
         
     let removeDupliactePlayers (player:JsonValue) = player?firstName.AsString() + " " + player?lastName.AsString()
 
-    let getAllPlayersInPosition (pos:Position) (players:JsonValue[]) =
-
-        let position = match pos with
-                       | Goalkeeper -> Goalkeeper
-                       | Defender -> Defender
-                       | Midfielder -> Midfielder
-                       | Attacker -> Attacker
-
+    let getAllPlayersInPosition (position:Position) (players:JsonValue[]) =
         players
         |> Array.filter (findPositionFromString position)
         |> Array.distinctBy removeDupliactePlayers
@@ -99,6 +85,7 @@ module FantasyFootball
                                                                                           | FourFourTwo -> 1,4,4,2
                                                                                           | FourThreeThree -> 1,4,3,3
                                                                                           | ThreeFiveTwo -> 1,3,5,2
+                                                                                          | FourFiveOne -> 1,4,5,1
 
         let goalKeeper =  getStartingPlayers (getAllGoalkeepers players) findBestGoalkeeper numberOfGoalkeepers |> Array.head
         let defenders =  getStartingPlayers (getAllDefenders players) findBestDefenders numberOfDefenders
@@ -114,16 +101,12 @@ module FantasyFootball
 
     let findBestTeam formation =
         let players = getPlayers
-        let pickedFormation = match formation with
-                              | FourFourTwo -> FourFourTwo
-                              | FourThreeThree -> FourThreeThree
-                              | ThreeFiveTwo -> ThreeFiveTwo
-
-        createTeam players pickedFormation |> printTeam
+        createTeam players formation |> printTeam
         
     let pickTeam (stringFormation:string) =
         match stringFormation with
         | "442" -> findBestTeam FourFourTwo
         | "433" -> findBestTeam FourThreeThree
         | "352" -> findBestTeam ThreeFiveTwo
+        | "451" -> findBestTeam FourFiveOne
         | _ -> failwith "Unknown formation, please try again!!"
