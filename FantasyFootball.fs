@@ -5,7 +5,7 @@ module FantasyFootball
     open Helper
     open Domain
 
-    let getPlayers =
+    let getPlayers () =
         let getPage page = 
             async {
                 let! data = JsonValue.AsyncLoad (sprintf "https://www.easports.com/fifa/ultimate-team/api/fut/item?page=%i" page)
@@ -61,12 +61,12 @@ module FantasyFootball
 
     let removeIconPlayers (jsonPlayer:JsonValue) = jsonPlayer?club?name.AsString() <> "Icons"
         
-    let removeDupliactePlayers (player:JsonValue) = player?firstName.AsString() + " " + player?lastName.AsString()
+    let removeDuplicatePlayers (player:JsonValue) = player?firstName.AsString() + " " + player?lastName.AsString()
 
     let getAllPlayersInPosition (position:Position) (players:JsonValue[]) =
         players
         |> Array.filter (findPositionFromString position)
-        |> Array.distinctBy removeDupliactePlayers
+        |> Array.distinctBy removeDuplicatePlayers
         |> Array.filter removeIconPlayers
 
     let getAllGoalkeepers = getAllPlayersInPosition Goalkeeper
@@ -87,20 +87,20 @@ module FantasyFootball
                                                                                           | ThreeFiveTwo -> 1,3,5,2
                                                                                           | FourFiveOne -> 1,4,5,1
 
-        let goalKeeper =  getStartingPlayers (getAllGoalkeepers players) findBestGoalkeeper numberOfGoalkeepers |> Array.head
+        let goalkeeper =  getStartingPlayers (getAllGoalkeepers players) findBestGoalkeeper numberOfGoalkeepers |> Array.head
         let defenders =  getStartingPlayers (getAllDefenders players) findBestDefenders numberOfDefenders
         let midfielders =  getStartingPlayers (getAllMidfielders players) findBestMidfielders numberOfMidfielders
         let attackers =  getStartingPlayers (getAllAttackers players) findBestAttackers numberOfAttackers
         
         {
-            Goalkeeper = goalKeeper
+            Goalkeeper = goalkeeper
             Defenders = defenders
             Midfielder = midfielders
             Attacker = attackers
         }
 
     let findBestTeam formation =
-        let players = getPlayers
+        let players = getPlayers ()
         createTeam players formation |> printTeam
         
     let pickTeam (stringFormation:string) =
