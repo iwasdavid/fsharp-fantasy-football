@@ -1,112 +1,167 @@
 module FantasyFootball
 
-    open FSharp.Data
-    open FSharp.Data.JsonExtensions
-    open Helper
-    open Domain
+open FSharp.Data
+open Helper
+open Domain
 
-    let getPlayers =
-        let getPage page = 
-            async {
-                let! data = JsonValue.AsyncLoad (sprintf "https://www.easports.com/fifa/ultimate-team/api/fut/item?page=%i" page)
-                let items = [| for item in data?items -> item |] 
-                return items
-            }
+type Players = JsonProvider<"https://www.easports.com/fifa/ultimate-team/api/fut/item?page=%i">
+type JsonPlayer = Players.Item
 
-        [|1..150|] 
-        |> Array.map getPage
-        |> Async.Parallel
-        |> Async.RunSynchronously
-        |> Array.concat
+let createPlayerFromJson (player: JsonPlayer) : Player =
+    { FirstName = player.FirstName
+      LastName = player.LastName
+      Team = player.Club.Name
+      Rating = player.Rating
+      Position =
+          match player.Position with
+          | "GK" -> "Goalkeeper"
+          | "RWB" -> "Right Wing Back"
+          | "RB" -> "Right Back"
+          | "LWB" -> "Left Wing Back"
+          | "LB" -> "Left Back"
+          | "CB" -> "Centre Back"
+          | "RW" -> "Right Wing"
+          | "RM" -> "Right Midfield"
+          | "LW" -> "Left Wing"
+          | "LM" -> "Left Midfield"
+          | "CM" -> "Centre Midfield"
+          | "CDM" -> "Centre Defensive Midfielder"
+          | "CAM" -> "Centre Atacking Midfielder"
+          | "ST" -> "Striker"
+          | "LF" -> "Left Forward"
+          | "RF" -> "Right Forward"
+          | "CF" -> "Centre Forward"
+          | _ -> "Unknown position!" }
 
-    let findPosition (position:string) =
+let getAllPlayersInPosition (position: Position) (players: JsonPlayer list) =
+    let findPosition (position: string) =
         match position.ToUpper().Trim() with
         | "GK" -> Goalkeeper
         | "RWB" | "RB" | "CB" | "LB" | "LWB" -> Defender
-        | "RW" | "RM" | "LW" | "LM" | "CM" | "CDM" | "CAM"  -> Midfielder
+        | "RW" | "RM" | "LW" | "LM" | "CM" | "CDM" | "CAM" -> Midfielder
         | "ST" | "LF" | "CF" | "RF" -> Attacker
         | _ -> failwith "No known position :("
+    
+    players
+    |> List.filter (fun x -> x.Club.Name <> "Icons" && findPosition x.Position = position)
+    |> List.distinctBy (fun x -> x.FirstName + " " + x.LastName)
 
-    let findPositionFromString (position:Position) (player:JsonValue)  =
-        let stringPosition = player?position.AsString()
-        let foundPosition = findPosition stringPosition
-        position = foundPosition
+let getAllGoalkeepers = getAllPlayersInPosition Goalkeeper
+let getAllDefenders = getAllPlayersInPosition Defender
+let getAllMidfielders = getAllPlayersInPosition Midfielder
+let getAllAttackers = getAllPlayersInPosition Attacker
 
-    let createPlayerFromJson (jsonPlayer:JsonValue) : Player =
-        {
-            FirstName = jsonPlayer?firstName.AsString()
-            LastName = jsonPlayer?lastName.AsString()
-            Team = jsonPlayer?club?name.AsString()
-            Rating = jsonPlayer?rating.AsInteger()
-            Position = match jsonPlayer?position.AsString() with
-                       | "GK" -> "Goalkeeper"
-                       | "RWB" -> "Right Wing Back"
-                       | "RB" -> "Right Back"
-                       | "LWB" -> "Left Wing Back"
-                       | "LB" -> "Left Back"
-                       | "CB" -> "Centre Back"
-                       | "RW" -> "Right Wing"
-                       | "RM" -> "Right Midfield"
-                       | "LW" -> "Left Wing"
-                       | "LM" -> "Left Midfield"
-                       | "CM" -> "Centre Midfield"
-                       | "CDM" -> "Centre Defensive Midfielder"
-                       | "CAM" -> "Centre Atacking Midfielder"
-                       | "ST" -> "Striker"
-                       | "LF" -> "Left Forward"
-                       | "RF" -> "Right Forward"
-                       | "CF" -> "Centre Forward"
-                       | _ -> "Unknown position!"
-        }
+let getStartingPlayers players findBest numberToTake =
+    players
+    |> List.sortByDescending findBest
+    |> List.truncate numberToTake
+    |> List.map createPlayerFromJson
 
-    let removeIconPlayers (jsonPlayer:JsonValue) = jsonPlayer?club?name.AsString() <> "Icons"
-        
-    let removeDupliactePlayers (player:JsonValue) = player?firstName.AsString() + " " + player?lastName.AsString()
+let findBestGoalkeeper (p: JsonPlayer) =
+    p.Rating +
+    p.Composure * 10 +
+    p.Gkdiving * 10 +
+    p.Gkhandling * 10 +
+    p.Gkkicking * 10 +
+    p.Gkpositioning * 10 +
+    p.Gkreflexes * 10 +
+    p.Longpassing +
+    p.Agility +
+    p.Freekickaccuracy +
+    p.Jumping +
+    p.Positioning +
+    p.Strength +
+    p.Vision +
+    p.WeakFoot
 
-    let getAllPlayersInPosition (position:Position) (players:JsonValue[]) =
-        players
-        |> Array.filter (findPositionFromString position)
-        |> Array.distinctBy removeDupliactePlayers
-        |> Array.filter removeIconPlayers
+let findBestDefenders (p: JsonPlayer) =
+    p.Rating +
+    p.Composure +
+    p.Acceleration +
+    p.Aggression +
+    p.Ballcontrol +
+    p.Headingaccuracy +
+    p.Interceptions +
+    p.Jumping +
+    p.Marking +
+    p.Positioning +
+    p.Shortpassing +
+    p.Slidingtackle +
+    p.Sprintspeed +
+    p.Standingtackle +
+    p.Strength +
+    p.Vision +
+    p.WeakFoot
 
-    let getAllGoalkeepers = getAllPlayersInPosition Goalkeeper
-    let getAllDefenders = getAllPlayersInPosition Defender
-    let getAllMidfielders = getAllPlayersInPosition Midfielder
-    let getAllAttackers = getAllPlayersInPosition Attacker
+let findBestMidfielders (p: JsonPlayer) =
+    p.Rating +
+    p.Acceleration +
+    p.Aggression +
+    p.Agility +
+    p.Balance +
+    p.Ballcontrol +
+    p.SkillMoves +
+    p.Crossing +
+    p.Interceptions +
+    p.Longpassing +
+    p.Longshots +
+    p.Positioning +
+    p.Shortpassing +
+    p.Standingtackle +
+    p.Stamina +
+    p.Strength +
+    p.Vision
 
-    let getStartingPlayers players findBest numberToTake =
-        players
-        |> Array.sortByDescending findBest
-        |> Array.take numberToTake
-        |> Array.map createPlayerFromJson
+let findBestAttackers (player: JsonPlayer) =
+    player.Rating +
+    player.Composure +
+    player.Acceleration +
+    player.Aggression +
+    player.Agility +
+    player.Balance +
+    player.Ballcontrol +
+    player.SkillMoves +
+    player.Curve +
+    player.Dribbling +
+    player.Finishing +
+    player.Freekickaccuracy +
+    player.Longshots +
+    player.Penalties +
+    player.Shotpower +
+    player.Sprintspeed
 
-    let createTeam (players:JsonValue[]) (pickedFormation:Formation) =
-        let numberOfGoalkeepers,numberOfDefenders,numberOfMidfielders,numberOfAttackers = match pickedFormation with
-                                                                                          | FourFourTwo -> 1,4,4,2
-                                                                                          | FourThreeThree -> 1,4,3,3
-                                                                                          | ThreeFiveTwo -> 1,3,5,2
-                                                                                          | FourFiveOne -> 1,4,5,1
+let createTeam (pickedFormation: Formation) (players: JsonPlayer list) =
+    let numberOfGoalkeepers, numberOfDefenders, numberOfMidfielders, numberOfAttackers =
+        match pickedFormation with
+        | FourFourTwo -> 1, 4, 4, 2
+        | FourThreeThree -> 1, 4, 3, 3
+        | ThreeFiveTwo -> 1, 3, 5, 2
+        | FourFiveOne -> 1, 4, 5, 1
 
-        let goalKeeper =  getStartingPlayers (getAllGoalkeepers players) findBestGoalkeeper numberOfGoalkeepers |> Array.head
-        let defenders =  getStartingPlayers (getAllDefenders players) findBestDefenders numberOfDefenders
-        let midfielders =  getStartingPlayers (getAllMidfielders players) findBestMidfielders numberOfMidfielders
-        let attackers =  getStartingPlayers (getAllAttackers players) findBestAttackers numberOfAttackers
-        
-        {
-            Goalkeeper = goalKeeper
-            Defenders = defenders
-            Midfielder = midfielders
-            Attacker = attackers
-        }
+    let goalkeeper =
+        getStartingPlayers (getAllGoalkeepers players) findBestGoalkeeper numberOfGoalkeepers
+        |> List.tryHead
+        |> Option.defaultWith (fun _ -> failwith "Goalkeeper was not found")
+    
+    { Goalkeeper = goalkeeper
+      Defenders = getStartingPlayers (getAllDefenders players) findBestDefenders numberOfDefenders
+      Midfielder = getStartingPlayers (getAllMidfielders players) findBestMidfielders numberOfMidfielders
+      Attacker = getStartingPlayers (getAllAttackers players) findBestAttackers numberOfAttackers }
 
-    let findBestTeam formation =
-        let players = getPlayers
-        createTeam players formation |> printTeam
-        
-    let pickTeam (stringFormation:string) =
-        match stringFormation with
-        | "442" -> findBestTeam FourFourTwo
-        | "433" -> findBestTeam FourThreeThree
-        | "352" -> findBestTeam ThreeFiveTwo
-        | "451" -> findBestTeam FourFiveOne
-        | _ -> failwith "Unknown formation, please try again!!"
+let findBestTeam formation =
+    [| 1..150 |]
+    |> Array.map (sprintf "https://www.easports.com/fifa/ultimate-team/api/fut/item?page=%i")
+    |> Array.map Players.AsyncLoad
+    |> Async.Parallel
+    |> Async.RunSynchronously
+    |> Array.collect (fun x -> x.Items)
+    |> Array.toList
+    |> createTeam formation
+    |> printTeam
+
+let pickTeam = function
+    | "442" -> findBestTeam FourFourTwo
+    | "433" -> findBestTeam FourThreeThree
+    | "352" -> findBestTeam ThreeFiveTwo
+    | "451" -> findBestTeam FourFiveOne
+    | _ -> failwith "Unknown formation, please try again!"
